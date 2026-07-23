@@ -6,6 +6,8 @@ import { projectMeetingsRouter, meetingRouter, extractedTaskRouter } from "../mo
 import { projectTasksRouter, taskRouter } from "../modules/tasks/routes";
 import { projectDashboardRouter } from "../modules/dashboard/routes";
 import { projectRiskRouter, taskRiskRouter } from "../modules/risk/routes";
+import { projectAuditRouter } from "../modules/audit/routes";
+import { projectUploadsRouter } from "../modules/uploads/routes";
 
 const router = Router();
 
@@ -16,6 +18,8 @@ router.use("/projects", projectsRoutes);
 router.use("/projects/:id/meetings", projectMeetingsRouter);
 router.use("/projects/:id/tasks", projectTasksRouter);
 router.use("/projects/:id/dashboard", projectDashboardRouter);
+router.use("/projects/:id/audit-logs", projectAuditRouter);
+router.use("/projects/:id/uploads", projectUploadsRouter);
 router.use("/projects/:id", projectRiskRouter);
 
 router.use("/meetings", meetingRouter);
