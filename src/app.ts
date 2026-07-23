@@ -11,6 +11,10 @@ import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 export function createApp() {
   const app = express();
 
+  // 리버스 프록시(Caddy/ALB) 뒤에서 실행되므로 첫 번째 홉을 신뢰한다.
+  // (express-rate-limit의 클라이언트 IP 식별, secure 쿠키 판단에 필요)
+  app.set("trust proxy", 1);
+
   app.disable("x-powered-by");
   app.use(helmet());
   app.use(

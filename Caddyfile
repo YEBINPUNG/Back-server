@@ -1,0 +1,13 @@
+# DOMAIN 환경변수(.env)의 도메인으로 자동 HTTPS 인증서를 발급/갱신한다.
+# 예: DOMAIN=myteam.duckdns.org
+{$DOMAIN} {
+	# 백엔드 컨테이너로 프록시 (compose 서비스명 app:4000)
+	reverse_proxy app:4000
+
+	encode gzip
+
+	# 실제 클라이언트 IP를 백엔드로 전달 (rate-limit/로그용)
+	header {
+		-Server
+	}
+}
