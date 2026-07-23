@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// User & Auth
+// ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  memberships   ProjectMember[]
+  refreshTokens RefreshToken[]
+  meetingNotes  MeetingNote[]    @relation("MeetingAuthor")
+  assignedTasks Task[]           @relation("TaskAssignee")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────
+// Project & Membership
+// ─────────────────────────────────────────────
+
+model Project {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  members  ProjectMember[]
+  meetings MeetingNote[]
+  tasks    Task[]
+  auditLogs AuditLog[]
+
+  @@map("projects")
+}
+
+enum ProjectRole {
+  OWNER
+  MEMBER
+  VIEWER
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  projectId String
+  userId    String
+  role      ProjectRole
+  joinedAt  DateTime    @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+// ─────────────────────────────────────────────
+// Meeting Notes & AI Extraction
+// ─────────────────────────────────────────────
+
+model MeetingNote {
+  id          String    @id @default(uuid())
+  projectId   String
+  authorId    String
+  title       String
+  rawContent  String
+  summary     String?
+  meetingDate DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  project   Project         @relation(fields: [projectId], references: [id])
+  author    User            @relation("MeetingAuthor", fields: [authorId], references: [id])
+  extracted ExtractedTask[]
+  sourceOfTasks Task[]      @relation("TaskSourceMeeting")
+
+  @@index([projectId])
+  @@map("meeting_notes")
+}
+
+enum ExtractStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ExtractedTask {
+  id            String        @id @default(uuid())
+  meetingNoteId String
+  title         String
+  assigneeGuess String?
+  dueDateGuess  DateTime?
+  status        ExtractStatus @default(PENDING)
+  taskId        String?       @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  meetingNote MeetingNote @relation(fields: [meetingNoteId], references: [id])
+  task        Task?       @relation(fields: [taskId], references: [id])
+
+  @@index([meetingNoteId])
+  @@map("extracted_tasks")
+}
+
+// ─────────────────────────────────────────────
+// Task & History & Risk
+// ─────────────────────────────────────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model Task {
+  id              String     @id @default(uuid())
+  projectId       String
+  assigneeId      String?
+  title           String
+  description     String?
+  status          TaskStatus @default(TODO)
+  dueDate         DateTime?
+  estimatedHours  Float?
+  sourceMeetingId String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  project        Project          @relation(fields: [projectId], references: [id])
+  assignee       User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  sourceMeeting  MeetingNote?     @relation("TaskSourceMeeting", fields: [sourceMeetingId], references: [id])
+  history        TaskHistory[]
+  risks          TaskRiskAssessment[]
+  extractedTask  ExtractedTask?
+
+  @@index([projectId, status])
+  @@index([assigneeId, status])
+  @@map("tasks")
+}
+
+model TaskHistory {
+  id        String   @id @default(uuid())
+  taskId    String
+  actorId   String
+  field     String
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+
+  @@index([taskId])
+  @@map("task_histories")
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model TaskRiskAssessment {
+  id          String    @id @default(uuid())
+  taskId      String
+  riskLevel   RiskLevel
+  probability Float
+  reasons     Json
+  createdAt   DateTime  @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+
+  @@index([taskId])
+  @@map("task_risk_assessments")
+}
+
+// ─────────────────────────────────────────────
+// Audit Log
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  projectId String?
+  actorId   String
+  action    String
+  target    String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@map("audit_logs")
+}
