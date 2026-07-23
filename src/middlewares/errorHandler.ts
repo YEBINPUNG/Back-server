@@ -47,6 +47,17 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     }
   }
 
+  // body-parser 등 하위 미들웨어가 던지는 클라이언트 오류(잘못된 JSON, 페이로드 초과 등)는
+  // 500이 아니라 해당 4xx로 반환한다. (예: 깨진 JSON → 400)
+  const httpStatus = (err as { status?: number; statusCode?: number })?.status ??
+    (err as { status?: number; statusCode?: number })?.statusCode;
+  if (typeof httpStatus === "number" && httpStatus >= 400 && httpStatus < 500) {
+    res.status(httpStatus).json({
+      error: { code: "BAD_REQUEST", message: "요청을 처리할 수 없습니다. 입력을 확인해주세요." },
+    });
+    return;
+  }
+
   logger.error({ err }, "Unhandled error");
   res.status(500).json({
     error: { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
