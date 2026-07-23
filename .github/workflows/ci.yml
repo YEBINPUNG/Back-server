@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -34,3 +34,23 @@ jobs:
 
       - name: Test
         run: npm test
+
+  deploy:
+    needs: build
+    # main 브랜치에 push될 때만 배포 (PR/포크에서는 배포하지 않음)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/Back-server
+            git pull --ff-only
+            docker compose up -d --build
+            docker image prune -f
