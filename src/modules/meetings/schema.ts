@@ -21,25 +21,28 @@ export const approveExtractedTaskSchema = z.object({
 
 // ── LLM 출력 검증 스키마 ──
 
+// LLM 원출력은 느슨하게 파싱만 한다(무료 모델이 형식을 완벽히 지키지 않으므로).
+// 실제 정규화(길이 제한, 날짜 형식 검증→null)는 ai.ts에서 수행해 검증 실패로 전체를 버리지 않는다.
 export const summarizeOutputSchema = z.object({
-  summary: z.string().trim().min(1).max(4000),
+  summary: z.string().min(1),
 });
 
 export const extractTasksOutputSchema = z.object({
-  tasks: z
-    .array(
-      z.object({
-        title: z.string().trim().min(1).max(200),
-        assigneeGuess: z.string().trim().max(50).nullable().optional(),
-        dueDateGuess: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다.")
-          .nullable()
-          .optional(),
-      })
-    )
-    .max(30),
+  tasks: z.array(
+    z.object({
+      title: z.string(),
+      assigneeGuess: z.string().nullish(),
+      dueDateGuess: z.string().nullish(),
+    })
+  ),
 });
+
+/** 정규화된 추출 태스크 초안 (ai.ts가 반환하고 service가 저장) */
+export interface ExtractedTaskDraft {
+  title: string;
+  assigneeGuess: string | null;
+  dueDateGuess: string | null;
+}
 
 export type CreateMeetingInput = z.infer<typeof createMeetingSchema>;
 export type UpdateMeetingInput = z.infer<typeof updateMeetingSchema>;

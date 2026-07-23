@@ -1,13 +1,19 @@
 import { z } from "zod";
 import { RiskLevel } from "@prisma/client";
 
-export const llmRiskRefinementSchema = z.object({
-  riskLevel: z.nativeEnum(RiskLevel),
-  probability: z.number().min(0).max(1),
-  narrative: z.string().trim().min(1).max(500),
+// LLM 원출력은 느슨하게 파싱만 한다. 대소문자/범위 정규화는 ai.ts에서 수행.
+export const llmRiskRawSchema = z.object({
+  riskLevel: z.string(),
+  probability: z.coerce.number(),
+  narrative: z.string().nullish(),
 });
 
-export type LlmRiskRefinement = z.infer<typeof llmRiskRefinementSchema>;
+/** 정규화된 LLM 위험 보정 결과 */
+export interface LlmRiskRefinement {
+  riskLevel: RiskLevel;
+  probability: number;
+  narrative: string;
+}
 
 export interface TaskFeatures {
   daysUntilDue: number | null;

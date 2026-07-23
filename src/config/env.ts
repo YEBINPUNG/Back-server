@@ -12,8 +12,11 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default("30m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("14d"),
 
-  ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
-  ANTHROPIC_MODEL: z.string().default("claude-sonnet-5"),
+  // LLM 공급자는 OpenAI 호환 API로 추상화한다. 기본값은 무료 티어인 Google Gemini.
+  // Groq 등 다른 공급자로 바꾸려면 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY만 교체하면 된다.
+  LLM_API_KEY: z.string().min(1, "LLM_API_KEY is required"),
+  LLM_BASE_URL: z.string().url().default("https://generativelanguage.googleapis.com/v1beta/openai/"),
+  LLM_MODEL: z.string().default("gemini-2.5-flash"),
 
   AWS_REGION: z.string().default("ap-northeast-2"),
   S3_BUCKET: z.string().optional(),

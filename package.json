@@ -20,7 +20,6 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
     "@aws-sdk/client-s3": "^3.687.0",
     "@aws-sdk/s3-request-presigner": "^3.687.0",
     "@prisma/client": "^5.22.0",
@@ -33,6 +32,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
+    "openai": "^4.104.0",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
     "zod": "^3.23.8"

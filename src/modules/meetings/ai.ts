@@ -1,5 +1,7 @@
 import { callLLMTool, sanitizeRawText } from "../../lib/llm";
-import { extractTasksOutputSchema, summarizeOutputSchema, ExtractTasksOutput } from "./schema";
+import { extractTasksOutputSchema, summarizeOutputSchema, ExtractedTaskDraft } from "./schema";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function summarizeMeetingContent(rawContent: string): Promise<string> {
   const content = sanitizeRawText(rawContent);
@@ -21,13 +23,13 @@ export async function summarizeMeetingContent(rawContent: string): Promise<strin
     outputSchema: summarizeOutputSchema,
   });
 
-  return result.summary;
+  return result.summary.trim().slice(0, 4000);
 }
 
 export async function extractTasksFromMeetingContent(
   rawContent: string,
   memberNames: string[]
-): Promise<ExtractTasksOutput["tasks"]> {
+): Promise<ExtractedTaskDraft[]> {
   const content = sanitizeRawText(rawContent);
   const memberHint =
     memberNames.length > 0
@@ -63,5 +65,17 @@ export async function extractTasksFromMeetingContent(
     outputSchema: extractTasksOutputSchema,
   });
 
-  return result.tasks;
+  // 정규화: 제목 길이 제한, 담당자/마감일 형식 검증(YYYY-MM-DD 아니면 null), 빈 제목 제거
+  return result.tasks
+    .map((t) => {
+      const assignee = (t.assigneeGuess ?? "").trim();
+      const due = (t.dueDateGuess ?? "").trim();
+      return {
+        title: (t.title ?? "").trim().slice(0, 200),
+        assigneeGuess: assignee ? assignee.slice(0, 50) : null,
+        dueDateGuess: DATE_RE.test(due) ? due : null,
+      };
+    })
+    .filter((t) => t.title.length > 0)
+    .slice(0, 50);
 }

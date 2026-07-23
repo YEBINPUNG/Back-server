@@ -1,7 +1,12 @@
-import { Task } from "@prisma/client";
+import { RiskLevel, Task } from "@prisma/client";
 import { callLLMTool } from "../../lib/llm";
 import { logger } from "../../lib/logger";
-import { llmRiskRefinementSchema, LlmRiskRefinement, RuleBasedAssessment, TaskFeatures } from "./schema";
+import { llmRiskRawSchema, LlmRiskRefinement, RuleBasedAssessment, TaskFeatures } from "./schema";
+
+function normalizeRiskLevel(raw: string, fallback: RiskLevel): RiskLevel {
+  const v = raw.toUpperCase().trim();
+  return v === "HIGH" || v === "MEDIUM" || v === "LOW" ? (v as RiskLevel) : fallback;
+}
 
 /**
  * 2차 판정: 피처 값 + 태스크 컨텍스트를 LLM에 넣어 확률을 보정하고 자연어 근거를 생성한다.
@@ -24,7 +29,7 @@ export async function refineRiskWithLLM(
       ruleBasedAssessment: ruleAssessment,
     });
 
-    return await callLLMTool({
+    const raw = await callLLMTool({
       system:
         "너는 팀 프로젝트 태스크의 지연 위험을 평가하는 어시스턴트다. 서버가 계산한 결정적 피처 값과 " +
         "규칙 기반 1차 판정 결과가 주어진다. 이 값들을 참고하여 확률을 미세 조정하고, 왜 위험한지(혹은 " +
@@ -41,9 +46,17 @@ export async function refineRiskWithLLM(
         },
         required: ["riskLevel", "probability", "narrative"],
       },
-      outputSchema: llmRiskRefinementSchema,
+      outputSchema: llmRiskRawSchema,
       maxRetries: 1,
     });
+
+    // 정규화: 레벨 대소문자 보정(이상값이면 규칙 결과로), 확률 0~1 클램프, 근거 길이 제한
+    const narrative = (raw.narrative ?? "").trim().slice(0, 500);
+    return {
+      riskLevel: normalizeRiskLevel(raw.riskLevel, ruleAssessment.riskLevel),
+      probability: Math.min(1, Math.max(0, raw.probability)),
+      narrative: narrative || "AI 보정 근거가 제공되지 않았습니다.",
+    };
   } catch (err) {
     logger.warn({ err, taskId: task.id }, "LLM 위험도 보정 실패 — 규칙 기반 결과로 폴백");
     return null;
