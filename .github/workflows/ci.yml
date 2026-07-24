@@ -53,4 +53,6 @@ jobs:
             cd ~/Back-server
             git pull --ff-only
             docker compose up -d --build
+            # Caddyfile은 바인드 마운트라 컨테이너가 재생성되지 않으므로 명시적으로 리로드한다.
+            docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || docker compose restart caddy
             docker image prune -f
