@@ -3,7 +3,7 @@
 {$DOMAIN} {
 	encode gzip
 
-	# API 요청은 백엔드 컨테이너로 프록시 (경로 /api/v1/... 그대로 전달)
+	# API 요청은 백엔드 컨테이너로 프록시 (경로 /api/v1/... 그대로 전달). 보안 헤더는 helmet이 처리.
 	handle /api/* {
 		reverse_proxy app:4000
 	}
@@ -15,6 +15,14 @@
 
 	# 그 외 모든 경로는 정적 프론트엔드(SPA)를 서빙. 없는 경로는 index.html로 폴백.
 	handle {
+		# 정적 응답 보안 헤더 (클릭재킹/MIME 스니핑/리퍼러 노출 방지, 서버 정보 숨김)
+		header {
+			-Server
+			X-Frame-Options "DENY"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "no-referrer"
+			Strict-Transport-Security "max-age=31536000"
+		}
 		root * /srv/frontend
 		try_files {path} /index.html
 		file_server
